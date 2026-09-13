@@ -1,5 +1,6 @@
 #include <rh_utils.cuh>
 #include <rh_impls.cuh>
+#include <gpubreach_util.cuh>
 
 #include <atomic>
 #include <chrono>
@@ -36,11 +37,13 @@ int main(int argc, char *argv[])
 
   /* Read the row set */
   uint8_t *layout;
+  size_t total_byte = get_memory_limit ();
+
   int device;
-  cudaGetDevice(&device);
-  cudaMallocManaged (&layout, 47L * 1024 * 1024 * 1024);
-  cudaMemPrefetchAsync(layout, 46L * 1024 * 1024 * 1024, device);
-  cudaDeviceSynchronize();
+  cudaGetDevice (&device);
+  cudaMallocManaged (&layout, total_byte);
+  cudaMemPrefetchAsync (layout, size, device);
+  cudaDeviceSynchronize ();
   
   std::ifstream row_set_file(argv[1]);
   RowList rows = read_row_from_file(row_set_file, layout);

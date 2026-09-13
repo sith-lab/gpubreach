@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <chrono>
 #include <gpubreach_util.cuh>
+#include <unordered_map>
 
 GPUBreachContext::BitFlipConfig::BitFlipConfig (const std::string &config_file)
 {
@@ -126,104 +127,36 @@ get_memory_limit ()
   return total_byte;
 }
 
-std::map<uint64_t, std::vector<uint64_t>>
-get_relative_aggressor_offset (RowList &rows, std::vector<uint64_t> aggressors,
-                               uint8_t *layout)
-{
-  std::map<uint64_t, std::vector<uint64_t>> result;
-
-  constexpr uint64_t CHUNK_SIZE = 2ULL * 1024 * 1024; // 2MB
-
-  for (uint64_t rowId : aggressors)
-    {
-      if (rowId >= rows.size () || rows[rowId].empty ())
-        {
-          continue; // skip invalid or empty rows
-        }
-
-      for (int i = 0; i < 8; i++)
-        {
-          // First address in this row
-          uint8_t *addr = rows[rowId][i];
-          uint64_t offset = static_cast<uint64_t> (addr - layout);
-
-          // Which 2MB chunk?
-          uint64_t chunkId
-              = (offset / CHUNK_SIZE)
-                - static_cast<uint64_t> (rows[aggressors[0]][0] - layout)
-                      / CHUNK_SIZE;
-
-          // Offset relative to that chunk
-          uint64_t relativeOffset = offset % CHUNK_SIZE;
-
-          result[chunkId].push_back (relativeOffset);
-        }
-    }
-
-  return result;
-}
-
 std::pair<RowList, std::vector<uint64_t>>
-get_aggressor_rows_from_offset (
-    std::vector<uint8_t *> pointers,
-    std::map<uint64_t, std::vector<uint64_t>> offsets)
+get_new_rows (RowList &rows, std::vector<uint64_t> aggressors, uint8_t *layout, std::vector<uint8_t *> new_base_ptrs)
 {
-  RowList rows;
-  std::vector<uint64_t> aggressors;
+  RowList result;
+  int min_id = *std::min_element(std::begin(aggressors), std::end(aggressors));
+  uint8_t * min_row_addr_2MB_align = (uint8_t*)((uint64_t)rows[min_id][0] - ((uint64_t)rows[min_id][0] % ALLOC_SIZE));
+  std::unordered_map<uint64_t, uint64_t> row_id_to_new_idx;
 
-  std::vector<uint8_t *> currentRow;
+  for (uint64_t row_id : aggressors) {
+      if (row_id_to_new_idx.count(row_id)) continue;
 
-  for (const auto &entry : offsets)
-    {
-      uint64_t chunkId = entry.first;
-      const auto &relOffsets = entry.second;
+      const Row &src = rows[row_id];
+      Row rebased;
+      rebased.reserve(src.size());
 
-      if (chunkId >= pointers.size ())
-        {
-          continue; // skip if chunkId exceeds provided base pointers
-        }
+      for (uint8_t *ptr : src) {
+          rebased.push_back(new_base_ptrs[(ptr - min_row_addr_2MB_align) / ALLOC_SIZE] +  ((ptr - min_row_addr_2MB_align) % ALLOC_SIZE));
+      }
 
-      uint8_t *base = pointers[chunkId];
+      row_id_to_new_idx[row_id] = result.size();
+      result.push_back(std::move(rebased));
+  }
 
-      for (uint64_t relOffset : relOffsets)
-        {
-          currentRow.push_back (base + relOffset);
+  std::vector<uint64_t> new_aggressors;
+  new_aggressors.reserve(aggressors.size());
+  for (uint64_t row_id : aggressors) {
+      new_aggressors.push_back(row_id_to_new_idx[row_id]);
+  }
 
-          if (currentRow.size () == 8)
-            {
-              rows.push_back (currentRow);
-              currentRow.clear ();
-            }
-        }
-    }
-
-  // Push leftover (<8) if any
-  if (!currentRow.empty ())
-    {
-      rows.push_back (currentRow);
-    }
-
-  // Aggressor indices: 0..rows.size()-1
-  aggressors.resize (rows.size ());
-  for (uint64_t i = 0; i < rows.size (); i++)
-    {
-      aggressors[i] = i;
-    }
-
-  for (auto &row : rows)
-    {
-      row.erase (std::remove_if (row.begin (), row.end (),
-                                 [&] (uint8_t *addr)
-                                   {
-                                     uint64_t offsetInChunk
-                                         = reinterpret_cast<uint64_t> (addr)
-                                           % (2 * 1024 * 1024);
-                                     return offsetInChunk < (64 * 1024);
-                                   }),
-                 row.end ());
-    }
-
-  return { rows, aggressors };
+  return {std::move(result), std::move(new_aggressors)};
 }
 
 void

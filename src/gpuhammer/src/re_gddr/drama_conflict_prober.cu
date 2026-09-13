@@ -2,6 +2,7 @@
 #include <rh_utils.cuh>
 #include <cuda.h>
 #include <algorithm>
+#include <gpubreach_util.cuh>
 #include <iostream>
 namespace re_gddr
 {
@@ -10,15 +11,14 @@ ConflictProber::ConflictProber (uint64_t n, uint64_t size, uint64_t range, uint6
                         uint64_t step)
     : m_n{ n }, m_size{ size }, m_range{ range }, m_it{ it }, m_step{ step }
 {
-  size_t total_byte;
-  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
-  if (cudaSuccess != cuda_status)
-    {
-      printf ("Error: cudaMemGetInfo fails, %s \n",
-              cudaGetErrorString (cuda_status));
-      exit (1);
-    }
-  cudaMalloc (&mp_addr_layout, m_size);
+  size_t total_byte = get_memory_limit ();
+
+  int device;
+  cudaGetDevice (&device);
+  cudaMallocManaged (&mp_addr_layout, total_byte);
+  cudaMemPrefetchAsync (mp_addr_layout, m_size, device);
+  cudaDeviceSynchronize ();
+  // cudaMalloc (&mp_addr_layout, m_size);
   cudaMalloc (&mp_time_arr_device, sizeof (uint64_t) * m_it);
   cudaMalloc (&mp_addr_lst_device, m_n * sizeof (uint8_t *));
   std::cout << (void*) mp_addr_layout << '\n';

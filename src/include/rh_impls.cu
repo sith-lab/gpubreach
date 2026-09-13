@@ -82,14 +82,18 @@ uint64_t start_multi_warp_hammer(RowList &rows, std::vector<uint64_t> &agg_vec,
   /* GPU memory to store aggressors */
   uint8_t **agg_device_arr = get_aggressor_device_addr(rows, agg_vec);
 
-  uint64_t *timeSpentDevice = 0;
+  uint64_t *timeSpentDevice;
   uint64_t timeSpentHost;
-
+  cudaMalloc(&timeSpentDevice, sizeof(uint64_t *));
+  
   warp_simple_hammer_kernel<<<1, 1024>>>(agg_device_arr, it, n, k, len, delay, period, timeSpentDevice);
 
   cudaDeviceSynchronize();
 
+  cudaMemcpy(&timeSpentHost, timeSpentDevice, sizeof(uint64_t *),
+             cudaMemcpyDeviceToHost);
   cudaFree(agg_device_arr);
+  cudaFree(timeSpentDevice);
   return toNS(timeSpentHost);
 }
 

@@ -112,6 +112,7 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
 
       temp += ALLOC_SIZE;
     }
+  DBG_OUT << (void*)ctx.step1_data.alloc_ptrs[0] << '\n';
 
   if (debug_enabled ())
     {

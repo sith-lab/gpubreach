@@ -108,14 +108,14 @@ Our profiling is easier with the persistence mode enabled and with fixed GPU and
 
 ```bash
 # Example usage: 
-#  bash ./gpuhammer/util/init_cuda.sh <MAX_GPU_CLOCK> <MAX_MEMORY_CLOCK>
+#  bash ./src/gpuhammer/util/init_cuda.sh <MAX_GPU_CLOCK> <MAX_MEMORY_CLOCK>
 cd gpubreach
-bash gpuhammer/util/init_cuda.sh 1800 7600
+bash ./src/gpuhammer/util/init_cuda.sh 1800 7600
 ```
 
 **MAX_GPU_CLOCK** and **MAX_MEMORY_CLOCK** can be found with `deviceQuery` from CUDA samples. We provide this for A6000 in 'gpuhammer/src/deviceQuery.txt'. 
 
-These changes can be undone with `bash gpuhammer/util/reset_cuda.sh`.
+These changes can be undone with `bash ./src/gpuhammer/util/reset_cuda.sh`.
 
 #### Download ImageNet Validation Dataset
 

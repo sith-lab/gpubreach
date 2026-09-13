@@ -94,16 +94,15 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
   const uint64_t agg_pat
       = std::stoull (ctx.bitflip_config.agg_pat, nullptr, 16);
 
-  const std::string BREACH_ROOT = std::string (std::getenv ("BREACH_ROOT"));
+  const std::string HAMMER_ROOT = std::string (std::getenv ("HAMMER_ROOT"));
 
-  if (BREACH_ROOT == std::string ())
+  if (HAMMER_ROOT == std::string ())
     {
       std::cout << "BREACH_ROOT is not set" << std::endl;
       return 1;
     }
-  std::ifstream row_set_file (BREACH_ROOT
-                              + "/gpuhammer/"
-                                "results/row_sets/"
+  std::ifstream row_set_file (HAMMER_ROOT
+                              + "/results/row_sets/"
                               + ctx.bitflip_config.row_set_file);
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
@@ -148,8 +147,7 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
 
   /* We reconfigure the aggressor row addresses using the new virtual addresses
    */
-  auto offset_map = get_relative_aggressor_offset (rows, target_agg, layout);
-  auto row_agg_pair = get_aggressor_rows_from_offset (agg_ptrs, offset_map);
+  auto row_agg_pair = get_new_rows(rows, target_agg, layout, agg_ptrs);
   set_rows (row_agg_pair.first, row_agg_pair.second, agg_pat, step);
   cudaDeviceSynchronize ();
 

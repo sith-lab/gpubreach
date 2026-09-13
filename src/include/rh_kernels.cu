@@ -257,7 +257,7 @@ __global__ void warp_simple_hammer_kernel(uint8_t **addr_arr, uint64_t count,
     __syncthreads();
     if (threadIdx.x == 0){
       printf("", threadIdx.x, warpId, temp, ret);
-            //  * time = ce - cs;
+             * time = ce - cs;
     }
   }
 }

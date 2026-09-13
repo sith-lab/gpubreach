@@ -8,13 +8,13 @@ project(GPURowhammer LANGUAGES CXX CUDA)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-line-info -O3 -Xcicc -O0 -Xptxas -O3 -gencode=arch=compute_80,code=sm_80")
 find_package(CUDA 12.8 REQUIRED)
 
-include_directories(include)
+include_directories(../../include)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 
 # Hammer
-add_library(hammer_lib ./include/rh_kernels.cu ./include/rh_utils.cu ./include/rh_impls.cu )
+add_library(hammer_lib ../../include/rh_kernels.cu ../../include/rh_utils.cu ../../include/rh_impls.cu ../../include/gpubreach_util.cu ../../include/ini.cpp ../../include/INIReader.cpp)
 target_link_libraries(hammer_lib PUBLIC Threads::Threads)
 target_link_libraries(hammer_lib PRIVATE cuda)
 
